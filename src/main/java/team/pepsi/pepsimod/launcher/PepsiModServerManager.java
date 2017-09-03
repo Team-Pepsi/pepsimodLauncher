@@ -51,14 +51,10 @@ public class PepsiModServerManager {
         ObjectInputStream is = null;
         ObjectOutputStream os = null;
         try {
-            FMLLog.log.info("Opening connection...");
             socket = new Socket("127.0.0.1", 48273); //TODO: use server address
-            FMLLog.log.info("Connection opened!");
             ClientAuthInfo info = new ClientAuthInfo(getUsername(), getPassword(), "", 0);
-            FMLLog.log.info("Creating streams...");
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
-            FMLLog.log.info("Writing object...");
             os.writeObject(info);
             os.flush();
             Object obj = is.readObject();
@@ -128,14 +124,10 @@ public class PepsiModServerManager {
         ObjectInputStream is = null;
         ObjectOutputStream os = null;
         try {
-            FMLLog.log.info("Opening connection...");
             socket = new Socket("127.0.0.1", 48273); //TODO: use server address
-            FMLLog.log.info("Connection opened!");
             ClientAuthInfo info = new ClientAuthInfo(getUsername(), getPassword(), "", 1);
-            FMLLog.log.info("Creating streams...");
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
-            FMLLog.log.info("Writing object...");
             os.writeObject(info);
             os.flush();
             Object obj = is.readObject();

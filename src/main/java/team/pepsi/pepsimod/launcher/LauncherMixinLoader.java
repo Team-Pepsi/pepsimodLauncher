@@ -45,10 +45,15 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
     public LauncherMixinLoader() {
         try {
             PepsiModServerManager.downloadPepsiMod();
-            classLoader = new PepsiModClassLoader(new URL[0], getClass().getClassLoader(), PepsimodSent.INSTANCE.classes);
-            Field parent = ClassLoader.class.getDeclaredField("parent");
+
+            classLoader = new PepsiModClassLoader(new URL[0], null, PepsimodSent.INSTANCE.classes);
+
+            Field parent = LaunchClassLoader.class.getDeclaredField("parent");
             long offset = getUnsafe().objectFieldOffset(parent);
-            getUnsafe().putObject(getClass().getClassLoader(), offset, classLoader);
+            parent = ClassLoader.class.getDeclaredField("parent");
+            offset = getUnsafe().objectFieldOffset(parent);
+            getUnsafe().putObject(getClass().getClassLoader().getParent(), offset, classLoader);
+
             Field resourceCache = LaunchClassLoader.class.getDeclaredField("resourceCache");
             resourceCache.setAccessible(true);
             Map<String, byte[]> classCache = (Map<String, byte[]>) resourceCache.get(Launch.classLoader);
@@ -57,6 +62,14 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
                 classCache.put(entry.getKey(), Zlib.inflate(entry.getValue()));
             }
             FMLLog.log.info("Size after: " + ((Map<String, byte[]>) resourceCache.get(Launch.classLoader)).size());
+
+            FMLLog.log.info("ClassLoader heirachy:");
+            ClassLoader loader = Launch.classLoader;
+            while (getParent(loader) != null) {
+                FMLLog.log.info(loader.getClass().getCanonicalName());
+                loader = getParent(loader);
+            }
+            FMLLog.log.info(loader.getClass().getCanonicalName());
             coremod = Class.forName("net.daporkchop.pepsimod.PepsiModMixinLoader").newInstance();
         } catch (Throwable t) {
             t.printStackTrace();
@@ -77,15 +90,15 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
         }
 
         System.out.println(MixinEnvironment.getDefaultEnvironment().getObfuscationContext());
+
+        Runtime.getRuntime().exit(9387);
+        throw new IllegalStateException("debugging");
     }
 
     public static Unsafe getUnsafe() {
         try {
-            FMLLog.log.info("Getting field");
             Field f = Unsafe.class.getDeclaredField("theUnsafe");
-            FMLLog.log.info("Setting field to be accessible");
             f.setAccessible(true);
-            FMLLog.log.info("Getting value");
             return (Unsafe) f.get(null);
         } catch (Exception e) {
             e.printStackTrace();
@@ -97,7 +110,7 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
 
     public static Class<?> tryLoadingClassAsMainLoader(String name) throws ClassNotFoundException {
         if (loadingClasses.contains(name)) {
-            throw new ClassNotFoundException("CLASS NOT FOUND ON SECOND ITERATION! " + name);
+            throw new ClassNotFoundException("CLASS NOT LOADED ON SECOND ITERATION! " + name);
         }
         loadingClasses.add(name);
         Class<?> toReturn = null;
@@ -106,11 +119,11 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
             FMLLog.log.info("Unable to load class " + name + " with Launch.classLoader");
             toReturn = LauncherMixinLoader.class.getClassLoader().loadClass(name);
         }
+        loadingClasses.remove(name);
         if (toReturn == null) {
             FMLLog.log.info("Failed to load class " + name);
-            throw new ClassNotFoundException("unable to find class");
+            throw new ClassNotFoundException("unable to load class");
         }
-        loadingClasses.remove(name);
         return toReturn;
     }
 
@@ -159,5 +172,19 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
             throw new IllegalStateException(e.getCause());
         }
         return "";
+    }
+
+    public ClassLoader getParent(ClassLoader loader) {
+        if (loader instanceof LaunchClassLoader) {
+            try {
+                Field f = LaunchClassLoader.class.getDeclaredField("parent");
+                f.setAccessible(true);
+                return (ClassLoader) f.get(loader);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        return loader.getParent();
     }
 }

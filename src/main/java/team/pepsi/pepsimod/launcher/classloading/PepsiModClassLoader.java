@@ -18,8 +18,6 @@ import net.minecraftforge.fml.common.FMLLog;
 import team.pepsi.pepsimod.common.util.Zlib;
 import team.pepsi.pepsimod.launcher.LauncherMixinLoader;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
@@ -27,12 +25,12 @@ import java.util.Map;
 
 public class PepsiModClassLoader extends URLClassLoader {
     public final Map<String, byte[]> extraClassDefs;
-    public Method findClass = null;
+    //public Method findClass = null;
 
     public PepsiModClassLoader(URL[] urls, ClassLoader parent, Map<String, byte[]> extraClassDefs) {
-        super(urls, parent.getParent());
+        super(urls, parent);
         this.extraClassDefs = new HashMap<>(extraClassDefs);
-        Class<?> currentLoader = parent.getClass();
+        /*Class<?> currentLoader = parent.getClass();
         while (findClass == null) {
             FMLLog.log.info("Trying class: " + currentLoader.getCanonicalName());
             try {
@@ -43,32 +41,27 @@ public class PepsiModClassLoader extends URLClassLoader {
             } catch (NoSuchMethodException e) {
                 currentLoader = currentLoader.getSuperclass();
             }
+        }*/
+        try {
+            Class.forName("team.pepsi.pepsimod.launcher.resources.PepsiURLStreamHandler").newInstance();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
     @Override
     public Class<?> findClass(final String name) throws ClassNotFoundException {
+        //FMLLog.log.info("findClass:" + name);
         byte[] classBytes = this.extraClassDefs.getOrDefault(name, null);
         if (classBytes != null) {
             FMLLog.log.info("[PepsiModClassLoader] loading class: " + name);
             classBytes = Zlib.inflate(classBytes);
             return defineClass(name, classBytes, 0, classBytes.length);
         }
-
-        if (getParent() == null) {
+        try {
             return super.findClass(name);
-        } else {
-            try {
-                findClass.invoke(getParent(), name);
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();
-                Runtime.getRuntime().exit(9);
-            } catch (InvocationTargetException e) {
-                return LauncherMixinLoader.tryLoadingClassAsMainLoader(name);
-            }
-
-            FMLLog.log.error("NOT LOADING CLASS: " + name);
-            return null;
+        } catch (ClassNotFoundException e) {
+            return LauncherMixinLoader.tryLoadingClassAsMainLoader(name);
         }
     }
 
@@ -79,6 +72,7 @@ public class PepsiModClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> loadClass(String var1, boolean var2) throws ClassNotFoundException {
+        //FMLLog.log.info("loadClass:" + var1);
         try {
             return super.loadClass(var1, false);
         } catch (ClassNotFoundException e) {
