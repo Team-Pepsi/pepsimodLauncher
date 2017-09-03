@@ -20,9 +20,11 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import org.apache.logging.log4j.Logger;
+import team.pepsi.pepsimod.launcher.util.PepsimodSent;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 
 @Mod(name = "pepsimod", modid = "pepsimod", version = "0.1")
 public class PepsiModLauncher {
@@ -75,6 +77,8 @@ public class PepsiModLauncher {
         try {
             Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("postInit", FMLPostInitializationEvent.class);
             m.invoke(pepsimodInstance, event);
+            m = Class.forName("net.daporkchop.pepsimod.util.ImageUtils").getDeclaredMethod("init", HashMap.class);
+            m.invoke(null, PepsimodSent.INSTANCE.assets);
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             //can't happen
             throw new IllegalStateException(e.getCause());

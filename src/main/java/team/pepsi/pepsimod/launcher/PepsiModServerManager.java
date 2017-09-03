@@ -91,6 +91,12 @@ public class PepsiModServerManager {
                 String hwid = getHWID();
                 HashMap<String, byte[]> classes = (HashMap<String, byte[]>) SerializableUtils.fromBytes(CryptUtils.decrypt(Zlib.inflate(pck.classes), hwid));
                 HashMap<String, byte[]> assets = (HashMap<String, byte[]>) SerializableUtils.fromBytes(CryptUtils.decrypt(Zlib.inflate(pck.assets), hwid));
+                for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
+                    classes.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
+                }
+                for (Map.Entry<String, byte[]> entry : assets.entrySet()) {
+                    assets.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
+                }
                 return new PepsimodSent(classes, assets);
             } else {
                 throw new IllegalStateException("No valid packets recieved");

@@ -24,8 +24,8 @@ import org.spongepowered.asm.launch.MixinBootstrap;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 import org.spongepowered.asm.mixin.Mixins;
 import sun.misc.Unsafe;
-import team.pepsi.pepsimod.common.util.Zlib;
 import team.pepsi.pepsimod.launcher.classloading.PepsiModClassLoader;
+import team.pepsi.pepsimod.launcher.resources.PepsiResourceAdder;
 import team.pepsi.pepsimod.launcher.util.PepsimodSent;
 
 import javax.annotation.Nullable;
@@ -48,18 +48,17 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
 
             classLoader = new PepsiModClassLoader(new URL[0], null, PepsimodSent.INSTANCE.classes);
 
-            Field parent = LaunchClassLoader.class.getDeclaredField("parent");
+            Field parent = ClassLoader.class.getDeclaredField("parent");
             long offset = getUnsafe().objectFieldOffset(parent);
-            parent = ClassLoader.class.getDeclaredField("parent");
-            offset = getUnsafe().objectFieldOffset(parent);
             getUnsafe().putObject(getClass().getClassLoader().getParent(), offset, classLoader);
+            getUnsafe().putObject(Launch.classLoader, offset, new PepsiResourceAdder());
 
             Field resourceCache = LaunchClassLoader.class.getDeclaredField("resourceCache");
             resourceCache.setAccessible(true);
             Map<String, byte[]> classCache = (Map<String, byte[]>) resourceCache.get(Launch.classLoader);
             FMLLog.log.info("Initial size: " + classCache.size());
             for (Map.Entry<String, byte[]> entry : PepsimodSent.INSTANCE.classes.entrySet()) {
-                classCache.put(entry.getKey(), Zlib.inflate(entry.getValue()));
+                classCache.put(entry.getKey(), entry.getValue());
             }
             FMLLog.log.info("Size after: " + ((Map<String, byte[]>) resourceCache.get(Launch.classLoader)).size());
 

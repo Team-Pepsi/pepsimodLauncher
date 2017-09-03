@@ -15,7 +15,6 @@
 package team.pepsi.pepsimod.launcher.classloading;
 
 import net.minecraftforge.fml.common.FMLLog;
-import team.pepsi.pepsimod.common.util.Zlib;
 import team.pepsi.pepsimod.launcher.LauncherMixinLoader;
 
 import java.net.URL;
@@ -55,7 +54,6 @@ public class PepsiModClassLoader extends URLClassLoader {
         byte[] classBytes = this.extraClassDefs.getOrDefault(name, null);
         if (classBytes != null) {
             FMLLog.log.info("[PepsiModClassLoader] loading class: " + name);
-            classBytes = Zlib.inflate(classBytes);
             return defineClass(name, classBytes, 0, classBytes.length);
         }
         try {
@@ -80,4 +78,40 @@ public class PepsiModClassLoader extends URLClassLoader {
 
         return LauncherMixinLoader.tryLoadingClassAsMainLoader(var1);
     }
+
+    /*@Override
+    public InputStream getResourceAsStream(String name) {
+        String original = name;
+        if (name.startsWith("/")) {
+            name = name.substring(1);
+        }
+        if (name.contains("pepsimod"))  {
+            FMLLog.log.info(name);
+        }
+        if (PepsimodSent.INSTANCE.assets.containsKey(name)) {
+            FMLLog.log.info("Stream: " + name);
+            return new ByteArrayInputStream(PepsimodSent.INSTANCE.assets.get(name));
+        }
+
+        return super.getResourceAsStream(name);
+    }
+
+    @Override
+    public URL getResource(String name) {
+        String original = name;
+        if (name.startsWith("/")) {
+            name = name.substring(1);
+        }
+        if (PepsimodSent.INSTANCE.assets.containsKey(name)) {
+            FMLLog.log.info("Resource: " + name);
+            FMLLog.log.info("pepsi://" + name);
+            try {
+                return new URL("pepsi://" + name);
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+        }
+        //return getBootstrapResource(var1);
+        return super.getResource(original);
+    }*/
 }
