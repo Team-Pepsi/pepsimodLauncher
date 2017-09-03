@@ -30,18 +30,17 @@ public class PepsiModLauncher {
     public static Logger logger;
 
     public PepsiModLauncher() {
-        if (LauncherMixinLoader.isObfuscatedEnvironment) {
-            try {
-                pepsimodInstance = Class.forName("net.daporkchop.pepsimod.PepsiMod").newInstance();
-            } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
-                //can't happen
-                throw new IllegalStateException(e.getCause());
-            }
-        }
+
     }
 
     @Mod.EventHandler
     public void construct(FMLConstructionEvent event) {
+        try {
+            pepsimodInstance = Class.forName("net.daporkchop.pepsimod.PepsiMod").newInstance();
+        } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {
+            //can't happen
+            throw new IllegalStateException(e.getCause());
+        }
         System.out.println("FMLConstructionEvent");
     }
 
@@ -49,42 +48,36 @@ public class PepsiModLauncher {
     public void preInit(FMLPreInitializationEvent event) {
         logger = event.getModLog();
         logger.info("FMLPreInitializationEvent");
-        if (pepsimodInstance != null) {
-            try {
-                Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("preInit", FMLPreInitializationEvent.class);
-                m.invoke(pepsimodInstance, event);
-            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                //can't happen
-                throw new IllegalStateException(e.getCause());
-            }
+        try {
+            Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("preInit", FMLPreInitializationEvent.class);
+            m.invoke(pepsimodInstance, event);
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            //can't happen
+            throw new IllegalStateException(e.getCause());
         }
     }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         logger.info("FMLInitializationEvent");
-        if (pepsimodInstance != null) {
-            try {
-                Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("init", FMLInitializationEvent.class);
-                m.invoke(pepsimodInstance, event);
-            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                //can't happen
-                throw new IllegalStateException(e.getCause());
-            }
+        try {
+            Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("init", FMLInitializationEvent.class);
+            m.invoke(pepsimodInstance, event);
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            //can't happen
+            throw new IllegalStateException(e.getCause());
         }
     }
 
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         logger.info("FMLPostInitializationEvent");
-        if (pepsimodInstance != null) {
-            try {
-                Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("postInit", FMLPostInitializationEvent.class);
-                m.invoke(pepsimodInstance, event);
-            } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                //can't happen
-                throw new IllegalStateException(e.getCause());
-            }
+        try {
+            Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("postInit", FMLPostInitializationEvent.class);
+            m.invoke(pepsimodInstance, event);
+        } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            //can't happen
+            throw new IllegalStateException(e.getCause());
         }
     }
 }
