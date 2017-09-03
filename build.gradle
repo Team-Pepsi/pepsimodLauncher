@@ -1,0 +1,132 @@
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+        maven {
+            name = 'SpongePowered'
+            url = 'http://repo.spongepowered.org/maven'
+        }
+    }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
+        classpath 'org.spongepowered:mixingradle:0.4-SNAPSHOT'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.4'
+    }
+}
+
+apply plugin: "net.minecraftforge.gradle.forge"
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'Jitpack'
+        url = 'https://jitpack.io'
+    }
+}
+
+version = "11.1"
+group = "net.daporkchop"
+archivesBaseName = "pepsimodlauncher"
+
+sourceCompatibility = targetCompatibility = '1.8'
+compileJava {
+    sourceCompatibility = targetCompatibility = '1.8'
+}
+
+minecraft {
+    version = "1.12.1-14.22.0.2456"
+    runDir = "run"
+    mappings = "snapshot_20170706"
+    makeObfSourceJar = false
+    coreMod = "team.pepsi.pepsimod.launcher.LauncherMixinLoader"
+}
+
+repositories {
+    maven {
+        name = 'spongepowered-repo'
+        url = 'http://repo.spongepowered.org/maven/'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    compile("org.spongepowered:mixin:0.7-SNAPSHOT") {
+        exclude module: "launchwrapper"
+    }
+    compile 'com.github.Team-Pepsi:pepsimod-common:740c3813a9'
+    compile 'org.jhardware:jHardware:0.8.4'
+}
+
+processResources {
+    // this will ensure that this task is redone when the versions change.
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    // replace stuff in mcmod.info, nothing else
+    from(sourceSets.main.resources.srcDirs) {
+        include "mcmod.info"
+
+        // replace version and mcversion
+        expand "version": project.version, "mcversion": project.minecraft.version
+    }
+
+    // copy everything else, thats not the mcmod.info
+    from(sourceSets.main.resources.srcDirs) {
+        exclude "mcmod.info"
+    }
+
+    // move _at.cfg into META-INF
+    rename '(.+_at.cfg)', 'META-INF/$1'
+}
+
+mixin {
+    defaultObfuscationEnv searge
+    add sourceSets.main, "mixins.pepsimod.refmap.json"
+}
+
+reobf {
+    shadowJar {
+        mappingType = 'SEARGE'
+        classpath = sourceSets.main.compileClasspath
+    }
+}
+
+shadowJar {
+    dependencies {
+        include(dependency('org.spongepowered:mixin'))
+        include(dependency('com.github.Team-Pepsi:pepsimod-common'))
+        include(dependency('org.jhardware:jHardware'))
+        include(dependency('com.profesorfalken:WMI4Java'))
+        include(dependency('com.profesorfalken:jSensors'))
+        include(dependency('com.profesorfalken:jPowerShell'))
+        include(dependency('net.java.dev.jna:jna'))
+        include(dependency('org.slf4j:slf4j-simple'))
+        include(dependency('org.slf4j:slf4j-api'))
+        include(dependency('org.springframework.security:spring-security-crypto'))
+        include(dependency('org.springframework:spring-core'))
+    }
+    exclude 'dummyThing'
+    exclude 'LICENSE.txt'
+    classifier = 'full'
+}
+
+build.dependsOn(shadowJar)
+
+jar {
+    manifest {
+        attributes(
+                "MixinConfigs": 'mixins.pepsimod.json',
+                "tweakClass": 'team.pepsi.pepsimod.launcher.LauncherTweaker',
+                "TweakOrder": 0,
+                'FMLCorePluginContainsFMLMod': 'true',
+                'FMLCorePlugin': 'team.pepsi.pepsimod.launcher.LauncherMixinLoader',
+                'FMLAT': 'pepsimod_at.cfg',
+                'ForceLoadAsMod': 'true'
+        )
+    }
+}
