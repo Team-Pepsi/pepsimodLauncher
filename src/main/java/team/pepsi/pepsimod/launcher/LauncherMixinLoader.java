@@ -14,15 +14,11 @@
 
 package team.pepsi.pepsimod.launcher;
 
-import net.minecraft.client.ClientBrandRetriever;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
-import org.spongepowered.asm.launch.MixinBootstrap;
-import org.spongepowered.asm.mixin.MixinEnvironment;
-import org.spongepowered.asm.mixin.Mixins;
 import sun.misc.Unsafe;
 import team.pepsi.pepsimod.launcher.classloading.PepsiModClassLoader;
 import team.pepsi.pepsimod.launcher.resources.PepsiResourceAdder;
@@ -75,23 +71,6 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
             System.out.println("FATAL ERROR IN PEPSIMOD LAUNCHER, SYSTEM WILL EXIT NOW!!!");
             Runtime.getRuntime().exit(0);
         }
-        System.out.println("\n\n\nPepsiMod Mixin init\n\n");
-        MixinBootstrap.init();
-        Mixins.addConfiguration("mixins.pepsimod.json");
-
-        for (Method m : ClientBrandRetriever.class.getDeclaredMethods()) {
-            System.out.println(m.getName() + " " + m.toString());
-        }
-
-        if (hasForge()) {
-            MixinEnvironment.getDefaultEnvironment().setObfuscationContext("searge");
-            FMLLog.log.info("Forge found!");
-        }
-
-        System.out.println(MixinEnvironment.getDefaultEnvironment().getObfuscationContext());
-
-        Runtime.getRuntime().exit(9387);
-        throw new IllegalStateException("debugging");
     }
 
     public static Unsafe getUnsafe() {

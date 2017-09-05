@@ -58,7 +58,7 @@ dependencies {
     compile("org.spongepowered:mixin:0.7-SNAPSHOT") {
         exclude module: "launchwrapper"
     }
-    compile 'com.github.Team-Pepsi:pepsimod-common:740c3813a9'
+    compile 'com.github.Team-Pepsi:pepsimod-common:9c7d2f9653'
     compile 'org.jhardware:jHardware:0.8.4'
 }
 
