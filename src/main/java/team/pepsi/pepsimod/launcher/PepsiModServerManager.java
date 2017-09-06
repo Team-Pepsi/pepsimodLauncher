@@ -59,12 +59,21 @@ public class PepsiModServerManager {
 
         Object[] array = {label_login, login, label_password, password};
 
+        if (LauncherMixinLoader.dialog != null) {
+            LauncherMixinLoader.dialog.setVisible(false);
+        }
         int res = JOptionPane.showConfirmDialog(null, array, "Login",
                 JOptionPane.OK_OPTION,
                 JOptionPane.PLAIN_MESSAGE);
+        if (res != JOptionPane.YES_OPTION) {
+            FMLCommonHandler.instance().exitJava(93287, true);
+        }
         tag.setString("username", login.getText());
         tag.setString("password", password.getText());
         tag.save();
+        if (LauncherMixinLoader.dialog != null) {
+            LauncherMixinLoader.dialog.setVisible(true);
+        }
     }
 
     private static Object handlePacket(Object obj, int state, Object... arguments) throws IllegalStateException {
@@ -75,9 +84,14 @@ public class PepsiModServerManager {
             if (pck.error.startsWith("notAnError")) {
                 return new ClientChangePassword((String) arguments[0]);
             }
+            if (LauncherMixinLoader.dialog != null) {
+                LauncherMixinLoader.dialog.setVisible(false);
+            }
             JOptionPane.showMessageDialog(null, pck.error, "pepsimod error", JOptionPane.OK_OPTION);
             if (pck.error.toLowerCase().startsWith("invalid credentials")) {
                 promptForCredentials();
+                return null;
+            } else if (pck.error.toLowerCase().startsWith("warning")) {
                 return null;
             } else {
                 Runtime.getRuntime().exit(2073);
@@ -96,6 +110,7 @@ public class PepsiModServerManager {
                 }
                 decrypted = CerializableUtils.fromBytes(currentState);
             } catch (IllegalStateException e) {
+                LauncherMixinLoader.dialog.setVisible(false);
                 JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
                 promptForCredentials();
                 return null;
@@ -111,6 +126,7 @@ public class PepsiModServerManager {
                 }
                 decrypted = CerializableUtils.fromBytes(currentState);
             } catch (IllegalStateException e) {
+                LauncherMixinLoader.dialog.setVisible(false);
                 JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
                 promptForCredentials();
                 return null;
@@ -176,11 +192,29 @@ public class PepsiModServerManager {
         return PepsimodSent.INSTANCE;
     }
 
-    public static String changePassword(String newPassword) {
+    public static String setPassword()  {
+        JLabel label_password = new JLabel("New password:");
+        JPasswordField password = new JPasswordField();
+
+        Object[] array = {label_password, password};
+
+        if (LauncherMixinLoader.dialog != null) {
+            LauncherMixinLoader.dialog.setVisible(false);
+        }
+        int res = JOptionPane.showConfirmDialog(null, array, "Change password", JOptionPane.OK_OPTION, JOptionPane.PLAIN_MESSAGE);
+        if (res != JOptionPane.YES_OPTION) {
+            return null;
+        }
+
+        return setPassword(password.getText());
+    }
+
+    public static String setPassword(String newPassword) {
         Socket socket = null;
         ObjectInputStream is = null;
         ObjectOutputStream os = null;
         boolean reboot = false, errored = false;
+
         try {
             socket = new Socket("127.0.0.1", 48273); //TODO: use server address
             ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID());
@@ -221,7 +255,7 @@ public class PepsiModServerManager {
         if (errored) {
             FMLCommonHandler.instance().exitJava(43986, true);
         } else if (reboot) {
-            newPassword = changePassword(newPassword);
+            newPassword = setPassword();
         }
 
         tag.setString("password", newPassword);

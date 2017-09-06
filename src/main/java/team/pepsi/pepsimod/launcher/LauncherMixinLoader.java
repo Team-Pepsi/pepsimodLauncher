@@ -25,6 +25,8 @@ import team.pepsi.pepsimod.launcher.resources.PepsiResourceAdder;
 import team.pepsi.pepsimod.launcher.util.PepsimodSent;
 
 import javax.annotation.Nullable;
+import javax.swing.*;
+import java.awt.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -37,8 +39,17 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
     public static PepsiModClassLoader classLoader;
     public static ArrayList<String> loadingClasses = new ArrayList<>();
     public Object coremod;
+    public static JDialog dialog;
 
     public LauncherMixinLoader() {
+        JFrame f= new JFrame();
+        dialog = new JDialog(f , "pepsimod", true);
+        dialog.setModal(false);
+        dialog.setLayout(new FlowLayout());
+        dialog.add(new JLabel("Loading pepsimod..."));
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
         try {
             PepsiModServerManager.downloadPepsiMod();
 
@@ -71,6 +82,9 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
             System.out.println("FATAL ERROR IN PEPSIMOD LAUNCHER, SYSTEM WILL EXIT NOW!!!");
             Runtime.getRuntime().exit(0);
         }
+        dialog.setVisible(false);
+        dialog.dispose();
+        dialog = null;
     }
 
     public static Unsafe getUnsafe() {
