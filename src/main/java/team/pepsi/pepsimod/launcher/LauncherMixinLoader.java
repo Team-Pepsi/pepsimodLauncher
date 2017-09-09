@@ -119,15 +119,6 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
         return toReturn;
     }
 
-    private boolean hasForge() {
-        for (IClassTransformer transformer : Launch.classLoader.getTransformers()) {
-            if (transformer.getClass().getName().contains("fml")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Override
     public String[] getASMTransformerClass() {
         return new String[]{"team.pepsi.pepsimod.launcher.ClassLoadingNotifier"};
