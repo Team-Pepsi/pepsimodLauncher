@@ -18,11 +18,10 @@ import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import org.jutils.jhardware.HardwareInfo;
 import org.jutils.jhardware.model.*;
-import team.pepsi.pepsimod.common.ClientAuthInfo;
-import team.pepsi.pepsimod.common.ClientChangePassword;
-import team.pepsi.pepsimod.common.ServerLoginErrorMessage;
-import team.pepsi.pepsimod.common.ServerPepsiModSending;
+import team.pepsi.pepsimod.common.*;
+import team.pepsi.pepsimod.common.message.ClientboundMessage;
 import team.pepsi.pepsimod.common.util.CryptUtils;
+import team.pepsi.pepsimod.common.util.SerializableUtils;
 import team.pepsi.pepsimod.common.util.Zlib;
 import team.pepsi.pepsimod.launcher.util.CerializableUtils;
 import team.pepsi.pepsimod.launcher.util.DataTag;
@@ -42,6 +41,15 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class PepsiModServerManager {
+    public static final int
+            ERROR_BANNED = 0,
+            ERROR_HWID = 1,
+            ERROR_WRONGCLASS = 2,
+            NOTIFICATION_SUCCESS = -1,
+            NOTIFICATION_USER = 1,
+            NOTIFICATION_IGNORE = -2,
+            NOTIFICATION_SENDPASS = 0;
+    public static final int protocol = 1;
     public static DataTag tag = new DataTag(new File(DataTag.HOME_FOLDER.getPath() + File.separatorChar + "pepsimodauth.dat"));
     public static String hwid = null;
 
@@ -76,26 +84,40 @@ public class PepsiModServerManager {
         }
     }
 
-    private static Object handlePacket(Object obj, int state, Object... arguments) throws IllegalStateException {
-        FMLLog.log.info(obj.getClass().getCanonicalName());
+    private static Object handlePacket(Object obj, int state, Object... arguments) {
+        if (obj instanceof ClientboundMessage) {
+            obj = SerializableUtils.fromBytes(((ClientboundMessage) obj).data);
+        } else if (obj instanceof ServerPepsiModSending) {
+
+        } else {
+            forceShutdown();
+        }
         if (obj instanceof ServerLoginErrorMessage) {
             ServerLoginErrorMessage pck = (ServerLoginErrorMessage) obj;
             FMLLog.log.info(pck.error);
-            if (pck.error.startsWith("notAnError")) {
-                return new ClientChangePassword((String) arguments[0]);
-            }
             if (LauncherMixinLoader.dialog != null) {
                 LauncherMixinLoader.dialog.setVisible(false);
             }
             JOptionPane.showMessageDialog(null, pck.error, "pepsimod error", JOptionPane.OK_OPTION);
-            if (pck.error.toLowerCase().startsWith("invalid credentials")) {
-                promptForCredentials();
-                return null;
-            } else if (pck.error.toLowerCase().startsWith("warning")) {
-                return null;
-            } else {
-                Runtime.getRuntime().exit(2073);
-                FMLCommonHandler.instance().exitJava(23098, true);
+            forceShutdown();
+        } else if (obj instanceof ServerNotification) {
+            ServerNotification pck = (ServerNotification) obj;
+            switch (pck.code) {
+                case NOTIFICATION_IGNORE:
+                    return null;
+                case NOTIFICATION_SUCCESS:
+                    JOptionPane.showMessageDialog(null, pck.error, "pepsimod password change", JOptionPane.OK_OPTION);
+                    return null;
+                case NOTIFICATION_USER:
+                    JOptionPane.showMessageDialog(null, pck.error, "pepsimod error", JOptionPane.OK_OPTION);
+                    promptForCredentials();
+                    return null;
+                case NOTIFICATION_SENDPASS:
+                    return new ClientChangePassword((String) arguments[0]);
+                default:
+                    FMLLog.log.info("invalid notification code: " + pck.code);
+                    forceShutdown();
+                    return "asdf";
             }
         } else if (obj instanceof ServerPepsiModSending) {
             ServerPepsiModSending pck = (ServerPepsiModSending) obj;
@@ -109,7 +131,7 @@ public class PepsiModServerManager {
                     throw new IllegalStateException();
                 }
                 decrypted = CerializableUtils.fromBytes(currentState);
-            } catch (IllegalStateException e) {
+            } catch (Exception e) {
                 LauncherMixinLoader.dialog.setVisible(false);
                 JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
                 promptForCredentials();
@@ -119,13 +141,12 @@ public class PepsiModServerManager {
             currentState = pck.assets;
             currentState = Zlib.inflate(currentState);
             try {
-                //if an IllegalStateException is thrown, then we can assume that the password is incorrect (as it's used for decryption)
                 currentState = CryptUtils.decrypt(currentState, getPassword());
                 if (currentState == null) {
                     throw new IllegalStateException();
                 }
                 decrypted = CerializableUtils.fromBytes(currentState);
-            } catch (IllegalStateException e) {
+            } catch (Exception e) {
                 LauncherMixinLoader.dialog.setVisible(false);
                 JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
                 promptForCredentials();
@@ -151,15 +172,17 @@ public class PepsiModServerManager {
         ObjectOutputStream os = null;
         boolean restart = false, errored = false;
         try {
-            socket = new Socket("127.0.0.1", 48273); //TODO: use server address
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 0, getHWID());
+            socket = new Socket("anarchy.daporkchop.net", 48273); //TODO: use server address
+            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 0, getHWID(), protocol);
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
-            //FMLLog.log.info(getUsername() + " " + getHWID());
+
+            handlePacket(is.readObject(), info.nextRequest);
             os.writeObject(info);
             os.flush();
+
             Object obj = handlePacket(is.readObject(), info.nextRequest);
-            if (obj == null) {
+            if (obj == null) { //if user is incorrect
                 restart = true;
             }
         } catch (IOException | ClassNotFoundException e) {
@@ -192,7 +215,7 @@ public class PepsiModServerManager {
         return PepsimodSent.INSTANCE;
     }
 
-    public static String setPassword()  {
+    public static String setPassword() {
         JLabel label_password = new JLabel("New password:");
         JPasswordField password = new JPasswordField();
 
@@ -216,22 +239,24 @@ public class PepsiModServerManager {
         boolean reboot = false, errored = false;
 
         try {
-            socket = new Socket("127.0.0.1", 48273); //TODO: use server address
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID());
+            socket = new Socket("anarchy.daporkchop.net", 48273); //TODO: use server address
+            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID(), protocol);
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
+
+            handlePacket(is.readObject(), info.nextRequest);
             os.writeObject(info);
             os.flush();
-            Object obj = is.readObject();
-            obj = handlePacket(obj, info.nextRequest, newPassword);
+
+            Object obj = handlePacket(is.readObject(), info.nextRequest, newPassword);
             if (obj instanceof ClientChangePassword) {
                 os.writeObject(obj);
                 os.flush();
             } else {
                 reboot = true;
+                throw new IllegalStateException("take me back to the start plox");
             }
-            os.writeObject(new ClientChangePassword(newPassword));
-            os.flush();
+            handlePacket(is.readObject(), info.nextRequest);
         } catch (IOException | ClassNotFoundException | IllegalStateException e) {
             e.printStackTrace();
             errored = true;
@@ -337,5 +362,29 @@ public class PepsiModServerManager {
         final String ver = System.getProperty("java.version");
         return name != null && name.equals("Java(TM) SE Runtime Environment")
                 && ver != null && (ver.startsWith("1.7") || ver.startsWith("1.8"));
+    }
+
+    public static void forceShutdown() {
+        try {
+            Runtime.class.getDeclaredMethod("exit", int.class).invoke(Runtime.getRuntime(), 1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            Runtime.class.getDeclaredMethod("halt", int.class).invoke(Runtime.getRuntime(), 3);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            FMLCommonHandler.instance().exitJava(1, true);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        try {
+            FMLCommonHandler.instance().exitJava(3, false);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        throw new NullPointerException("xd let's crash the game since forceshutdown didn't work");
     }
 }

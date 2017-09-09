@@ -24,35 +24,32 @@ import java.util.Map;
 
 public class PepsiModClassLoader extends URLClassLoader {
     public final Map<String, byte[]> extraClassDefs;
+    public String[] strings;
+    public byte[][] bytes;
     //public Method findClass = null;
 
     public PepsiModClassLoader(URL[] urls, ClassLoader parent, Map<String, byte[]> extraClassDefs) {
         super(urls, parent);
         this.extraClassDefs = new HashMap<>(extraClassDefs);
-        /*Class<?> currentLoader = parent.getClass();
-        while (findClass == null) {
-            FMLLog.log.info("Trying class: " + currentLoader.getCanonicalName());
-            try {
-                findClass = currentLoader.getDeclaredMethod("findClass", String.class);
-                FMLLog.log.info("Found method in " + currentLoader.getCanonicalName());
-                findClass.setAccessible(true);
-                FMLLog.log.info("Set method to accessible");
-            } catch (NoSuchMethodException e) {
-                currentLoader = currentLoader.getSuperclass();
-            }
-        }*/
         try {
             Class.forName("team.pepsi.pepsimod.launcher.resources.PepsiURLStreamHandler").newInstance();
         } catch (Exception e) {
             e.printStackTrace();
         }
+        strings = new String[extraClassDefs.entrySet().size()];
+        bytes = new byte[extraClassDefs.entrySet().size()][];
+        int i = 0;
+        for (Map.Entry<String, byte[]> entry : extraClassDefs.entrySet()) {
+            strings[i] = entry.getKey();
+            bytes[i] = entry.getValue();
+            i++;
+        }
     }
 
     @Override
     public Class<?> findClass(final String name) throws ClassNotFoundException {
-        //FMLLog.log.info("findClass:" + name);
-        byte[] classBytes = this.extraClassDefs.getOrDefault(name, null);
-        if (classBytes != null) {
+        if (canLoadClass(name)) {
+            byte[] classBytes = getClass(name);
             FMLLog.log.info("[PepsiModClassLoader] loading class: " + name);
             return defineClass(name, classBytes, 0, classBytes.length);
         }
@@ -70,48 +67,32 @@ public class PepsiModClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> loadClass(String var1, boolean var2) throws ClassNotFoundException {
-        //FMLLog.log.info("loadClass:" + var1);
         try {
-            return super.loadClass(var1, false);
+            return super.loadClass(var1, var2);
         } catch (ClassNotFoundException e) {
         }
 
         return LauncherMixinLoader.tryLoadingClassAsMainLoader(var1);
     }
 
-    /*@Override
-    public InputStream getResourceAsStream(String name) {
-        String original = name;
-        if (name.startsWith("/")) {
-            name = name.substring(1);
-        }
-        if (name.contains("pepsimod"))  {
-            FMLLog.log.info(name);
-        }
-        if (PepsimodSent.INSTANCE.assets.containsKey(name)) {
-            FMLLog.log.info("Stream: " + name);
-            return new ByteArrayInputStream(PepsimodSent.INSTANCE.assets.get(name));
-        }
-
-        return super.getResourceAsStream(name);
-    }
-
-    @Override
-    public URL getResource(String name) {
-        String original = name;
-        if (name.startsWith("/")) {
-            name = name.substring(1);
-        }
-        if (PepsimodSent.INSTANCE.assets.containsKey(name)) {
-            FMLLog.log.info("Resource: " + name);
-            FMLLog.log.info("pepsi://" + name);
-            try {
-                return new URL("pepsi://" + name);
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
+    public boolean canLoadClass(String name) {
+        for (String s : strings) {
+            if (s.equals(name)) {
+                return true;
             }
         }
-        //return getBootstrapResource(var1);
-        return super.getResource(original);
-    }*/
+
+        return false;
+    }
+
+    public byte[] getClass(String name) {
+        for (int i = 0; i < strings.length; i++) {
+            String s = strings[i];
+            if (s.equals(name)) {
+                return bytes[i];
+            }
+        }
+
+        return null;
+    }
 }
