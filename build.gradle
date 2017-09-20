@@ -53,11 +53,11 @@ compileJava {
 }
 
 minecraft {
-    version = "1.12.1-14.22.0.2456"
+    version = "1.12.2-14.23.0.2486"
     runDir = "run"
-    mappings = "snapshot_20170706"
+    mappings = "snapshot_20170919"
     makeObfSourceJar = false
-    coreMod = "team.pepsi.pepsimod.launcher.LauncherMixinLoader"
+    coreMod = "team.pepsi.pepsimod.launcher.QYBfw"
 }
 
 repositories {
@@ -69,10 +69,10 @@ repositories {
 }
 
 dependencies {
-    compile("org.spongepowered:mixin:0.7-SNAPSHOT") {
+    compile("org.spongepowered:mixin:0.7.2-SNAPSHOT") {
         exclude module: "launchwrapper"
     }
-    compile 'com.github.Team-Pepsi:pepsimod-common:dad8c934223b790a205e5ced52d53da557ee122f'
+    compile 'com.github.Team-Pepsi:pepsimod-common:aaabc7df4962f991c9fcf0985e1006f4c53665e1'
     compile 'org.jhardware:jHardware:0.8.4'
 }
 

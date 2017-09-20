@@ -172,8 +172,8 @@ public class PepsiModServerManager {
         ObjectOutputStream os = null;
         boolean restart = false, errored = false;
         try {
-            socket = new Socket("anarchy.daporkchop.net", 48273); //TODO: use server address
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 0, getHWID(), protocol);
+            socket = new Socket("anarchy.daporkchop.net", 48273);
+            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 0, getHWID(), protocol, getVersion());
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
 
@@ -239,8 +239,8 @@ public class PepsiModServerManager {
         boolean reboot = false, errored = false;
 
         try {
-            socket = new Socket("anarchy.daporkchop.net", 48273); //TODO: use server address
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID(), protocol);
+            socket = new Socket("anarchy.daporkchop.net", 48273);
+            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID(), protocol, getVersion());
             os = new ObjectOutputStream(socket.getOutputStream());
             is = new ObjectInputStream(socket.getInputStream());
 
@@ -386,5 +386,9 @@ public class PepsiModServerManager {
             e.printStackTrace();
         }
         throw new NullPointerException("xd let's crash the game since forceshutdown didn't work");
+    }
+
+    public static String getVersion() {
+        return "pepsimod-" + net.minecraftforge.common.ForgeVersion.mcVersion;
     }
 }
