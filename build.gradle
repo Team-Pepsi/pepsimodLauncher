@@ -57,7 +57,7 @@ minecraft {
     runDir = "run"
     mappings = "snapshot_20170919"
     makeObfSourceJar = false
-    coreMod = "team.pepsi.pepsimod.launcher.QYBfw"
+    coreMod = "team.pepsi.pepsimod.launcher.LauncherMixinLoader"
 }
 
 repositories {

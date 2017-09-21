@@ -14,6 +14,7 @@
 
 package team.pepsi.pepsimod.launcher;
 
+import net.minecraftforge.common.ForgeVersion;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import org.jutils.jhardware.HardwareInfo;
@@ -49,7 +50,7 @@ public class PepsiModServerManager {
             NOTIFICATION_USER = 1,
             NOTIFICATION_IGNORE = -2,
             NOTIFICATION_SENDPASS = 0;
-    public static final int protocol = 1;
+    public static final int protocol = 2;
     public static DataTag tag = new DataTag(new File(DataTag.HOME_FOLDER.getPath() + File.separatorChar + "pepsimodauth.dat"));
     public static String hwid = null;
 
@@ -389,6 +390,14 @@ public class PepsiModServerManager {
     }
 
     public static String getVersion() {
-        return "pepsimod-" + net.minecraftforge.common.ForgeVersion.mcVersion;
+        try {
+            Field f = ForgeVersion.class.getDeclaredField("mcVersion");
+            String version = "pepsimod-" + f.get(null);
+            FMLLog.log.info(version);
+            return version;
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IllegalStateException(e);
+        }
     }
 }
