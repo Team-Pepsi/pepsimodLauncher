@@ -170,7 +170,6 @@ public class PepsiModServerManager {
                                 pepsimodSend.decode();
                                 FMLLog.log.info("Class size: " + pepsimodSend.classes.length + " bytes");
                                 if (decrypt(pepsimodSend) == null) {
-                                    promptForCredentials();
                                     wrongPass = true;
                                 } else {
                                     FMLLog.log.info("Successfully decrypted pepsimod!");
