@@ -14,7 +14,6 @@
 
 package team.pepsi.pepsimod.launcher;
 
-import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraftforge.fml.common.FMLLog;
@@ -38,15 +37,16 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
     public static boolean isObfuscatedEnvironment = false;
     public static PepsiModClassLoader classLoader;
     public static ArrayList<String> loadingClasses = new ArrayList<>();
-    public Object coremod;
     public static JDialog dialog;
+    public static JLabel label = new JLabel("....................................................................................................................");
+    public Object coremod;
 
     public LauncherMixinLoader() {
         JFrame f= new JFrame();
         dialog = new JDialog(f , "pepsimod", true);
         dialog.setModal(false);
         dialog.setLayout(new FlowLayout());
-        dialog.add(new JLabel("Loading pepsimod..."));
+        dialog.add(label);
         dialog.pack();
         dialog.setLocationRelativeTo(null);
         dialog.setVisible(true);

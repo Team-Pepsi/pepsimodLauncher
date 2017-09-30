@@ -65,6 +65,10 @@ repositories {
         name = 'spongepowered-repo'
         url = 'http://repo.spongepowered.org/maven/'
     }
+    maven {
+        name = 'marfgamer'
+        url = 'https://raw.githubusercontent.com/JRakNet/MavenRepository/master'
+    }
     mavenCentral()
 }
 
@@ -72,7 +76,8 @@ dependencies {
     compile("org.spongepowered:mixin:0.7.2-SNAPSHOT") {
         exclude module: "launchwrapper"
     }
-    compile 'com.github.Team-Pepsi:pepsimod-common:aaabc7df4962f991c9fcf0985e1006f4c53665e1'
+    compile 'com.github.Team-Pepsi:pepsimod-common:ff7233b5df31e96ff437242794a43333ad8e0a94'
+    compile 'io.netty:netty-handler:4.1.2.Final'
     compile 'org.jhardware:jHardware:0.8.4'
 }
 
@@ -123,6 +128,14 @@ shadowJar {
         include(dependency('org.slf4j:slf4j-api'))
         include(dependency('org.springframework.security:spring-security-crypto'))
         include(dependency('org.springframework:spring-core'))
+        //include(dependency('net.marfgamer:jraknet'))
+        //include(dependency('joda-time:joda-time'))
+        include(dependency('io.netty:netty-handler'))
+        include(dependency('io.netty:netty-buffer'))
+        include(dependency('io.netty:netty-common'))
+        include(dependency('io.netty:netty-transport'))
+        include(dependency('io.netty:netty-resolver'))
+        include(dependency('io.netty:netty-codec'))
     }
     exclude 'dummyThing'
     exclude 'LICENSE.txt'

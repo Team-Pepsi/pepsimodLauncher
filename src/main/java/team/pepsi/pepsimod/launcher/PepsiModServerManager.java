@@ -14,48 +14,51 @@
 
 package team.pepsi.pepsimod.launcher;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
 import net.minecraftforge.common.ForgeVersion;
 import net.minecraftforge.fml.common.FMLCommonHandler;
 import net.minecraftforge.fml.common.FMLLog;
 import org.jutils.jhardware.HardwareInfo;
 import org.jutils.jhardware.model.*;
-import team.pepsi.pepsimod.common.*;
-import team.pepsi.pepsimod.common.message.ClientboundMessage;
 import team.pepsi.pepsimod.common.util.CryptUtils;
-import team.pepsi.pepsimod.common.util.SerializableUtils;
 import team.pepsi.pepsimod.common.util.Zlib;
+import team.pepsi.pepsimod.launcher.packet.ClientRequest;
+import team.pepsi.pepsimod.launcher.packet.Packet;
+import team.pepsi.pepsimod.launcher.packet.ServerClose;
+import team.pepsi.pepsimod.launcher.packet.ServerPepsimodSend;
 import team.pepsi.pepsimod.launcher.util.CerializableUtils;
 import team.pepsi.pepsimod.launcher.util.DataTag;
 import team.pepsi.pepsimod.launcher.util.PepsimodSent;
 
 import javax.swing.*;
 import java.io.File;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.net.Socket;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.HashMap;
 import java.util.Map;
 
 public class PepsiModServerManager {
-    public static final int
-            ERROR_BANNED = 0,
-            ERROR_HWID = 1,
-            ERROR_WRONGCLASS = 2,
-            NOTIFICATION_SUCCESS = -1,
-            NOTIFICATION_USER = 1,
-            NOTIFICATION_IGNORE = -2,
-            NOTIFICATION_SENDPASS = 0;
-    public static final int protocol = 2;
+    public static final int protocol = 4;
     public static DataTag tag = new DataTag(new File(DataTag.HOME_FOLDER.getPath() + File.separatorChar + "pepsimodauth.dat"));
     public static String hwid = null;
+    public static boolean errored = false;
+    public static boolean wrongPass = false;
+    public static String newPassword = null;
+    static boolean processedResponse = false;
 
     static {
+        LauncherMixinLoader.label.setText("Removing cryptography restrictions...");
         removeCryptographyRestrictions();
+        LauncherMixinLoader.label.setText("Generating HWID...");
         getHWID();
     }
 
@@ -85,133 +88,142 @@ public class PepsiModServerManager {
         }
     }
 
-    private static Object handlePacket(Object obj, int state, Object... arguments) {
-        if (obj instanceof ClientboundMessage) {
-            obj = SerializableUtils.fromBytes(((ClientboundMessage) obj).data);
-        } else if (obj instanceof ServerPepsiModSending) {
-
-        } else {
-            forceShutdown();
+    public static PepsimodSent decrypt(ServerPepsimodSend send) {
+        LauncherMixinLoader.label.setText("Decrypting data...");
+        byte[] currentState = send.classes;
+        currentState = Zlib.inflate(currentState);
+        Object decrypted;
+        try {
+            currentState = CryptUtils.decrypt(currentState, getPassword());
+            if (currentState == null) {
+                return null;
+            }
+            decrypted = CerializableUtils.fromBytes(currentState);
+        } catch (Exception e) {
+            LauncherMixinLoader.dialog.setVisible(false);
+            JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
+            return null;
         }
-        if (obj instanceof ServerLoginErrorMessage) {
-            ServerLoginErrorMessage pck = (ServerLoginErrorMessage) obj;
-            FMLLog.log.info(pck.error);
+        HashMap<String, byte[]> classes = (HashMap<String, byte[]>) decrypted;
+        currentState = send.assets;
+        currentState = Zlib.inflate(currentState);
+        try {
+            currentState = CryptUtils.decrypt(currentState, getPassword());
+            if (currentState == null) {
+                return null;
+            }
+            decrypted = CerializableUtils.fromBytes(currentState);
+        } catch (Exception e) {
+            LauncherMixinLoader.dialog.setVisible(false);
+            JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
+            return null;
+        }
+        HashMap<String, byte[]> assets = (HashMap<String, byte[]>) decrypted;
+        for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
+            classes.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
+        }
+        for (Map.Entry<String, byte[]> entry : assets.entrySet()) {
+            assets.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
+        }
+        return new PepsimodSent(classes, assets);
+    }
+
+    private static boolean handleClose(ServerClose close) {
+        if (close.hard) {
+            FMLLog.log.info(close.message);
             if (LauncherMixinLoader.dialog != null) {
                 LauncherMixinLoader.dialog.setVisible(false);
             }
-            JOptionPane.showMessageDialog(null, pck.error, "pepsimod error", JOptionPane.OK_OPTION);
+            JOptionPane.showMessageDialog(null, close.message, "pepsimod error", JOptionPane.OK_OPTION);
             forceShutdown();
-        } else if (obj instanceof ServerNotification) {
-            ServerNotification pck = (ServerNotification) obj;
-            switch (pck.code) {
-                case NOTIFICATION_IGNORE:
-                    return null;
-                case NOTIFICATION_SUCCESS:
-                    JOptionPane.showMessageDialog(null, pck.error, "pepsimod password change", JOptionPane.OK_OPTION);
-                    return null;
-                case NOTIFICATION_USER:
-                    JOptionPane.showMessageDialog(null, pck.error, "pepsimod error", JOptionPane.OK_OPTION);
-                    promptForCredentials();
-                    return null;
-                case NOTIFICATION_SENDPASS:
-                    return new ClientChangePassword((String) arguments[0]);
-                default:
-                    FMLLog.log.info("invalid notification code: " + pck.code);
-                    forceShutdown();
-                    return "asdf";
-            }
-        } else if (obj instanceof ServerPepsiModSending) {
-            ServerPepsiModSending pck = (ServerPepsiModSending) obj;
-            byte[] currentState = pck.classes;
-            currentState = Zlib.inflate(currentState);
-            Object decrypted;
-            try {
-                //if an IllegalStateException is thrown, then we can assume that the password is incorrect (as it's used for decryption)
-                currentState = CryptUtils.decrypt(currentState, getPassword());
-                if (currentState == null) {
-                    throw new IllegalStateException();
-                }
-                decrypted = CerializableUtils.fromBytes(currentState);
-            } catch (Exception e) {
-                LauncherMixinLoader.dialog.setVisible(false);
-                JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
-                promptForCredentials();
-                return null;
-            }
-            HashMap<String, byte[]> classes = (HashMap<String, byte[]>) decrypted;
-            currentState = pck.assets;
-            currentState = Zlib.inflate(currentState);
-            try {
-                currentState = CryptUtils.decrypt(currentState, getPassword());
-                if (currentState == null) {
-                    throw new IllegalStateException();
-                }
-                decrypted = CerializableUtils.fromBytes(currentState);
-            } catch (Exception e) {
-                LauncherMixinLoader.dialog.setVisible(false);
-                JOptionPane.showMessageDialog(null, "Invalid password!", "pepsimod error", JOptionPane.OK_OPTION);
-                promptForCredentials();
-                return null;
-            }
-            HashMap<String, byte[]> assets = (HashMap<String, byte[]>) decrypted;
-            for (Map.Entry<String, byte[]> entry : classes.entrySet()) {
-                classes.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
-            }
-            for (Map.Entry<String, byte[]> entry : assets.entrySet()) {
-                assets.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
-            }
-            new PepsimodSent(classes, assets);
-            return PepsimodSent.INSTANCE;
+            return false;
+        } else {
+            JOptionPane.showMessageDialog(null, close.message, "pepsimod error", JOptionPane.OK_OPTION);
+            return true;
         }
-
-        throw new IllegalStateException("Invalid packet recieved: " + obj.getClass().getCanonicalName());
     }
 
     public static PepsimodSent downloadPepsiMod() {
-        Socket socket = null;
-        ObjectInputStream is = null;
-        ObjectOutputStream os = null;
-        boolean restart = false, errored = false;
+        errored = false;
+        wrongPass = false;
+        processedResponse = false;
+        FMLLog.log.info("Preparing...");
+        LauncherMixinLoader.label.setText("Communicating with pepsimod server...");
+        EventLoopGroup group = new NioEventLoopGroup();
         try {
-            socket = new Socket("anarchy.daporkchop.net", 48273);
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 0, getHWID(), protocol, getVersion());
-            os = new ObjectOutputStream(socket.getOutputStream());
-            is = new ObjectInputStream(socket.getInputStream());
-
-            handlePacket(is.readObject(), info.nextRequest);
-            os.writeObject(info);
-            os.flush();
-
-            Object obj = handlePacket(is.readObject(), info.nextRequest);
-            if (obj == null) { //if user is incorrect
-                restart = true;
+            Bootstrap bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                public void initChannel(SocketChannel ch) throws Exception {
+                    FMLLog.log.info("initialized channel");
+                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));
+                    ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(4));
+                    ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                            FMLLog.log.info("Read from channel");
+                            Packet packet = new Packet((ByteBuf) msg);
+                            packet.decode();
+                            FMLLog.log.info("Handling packet ID " + packet.getId());
+                            if (packet.getId() == 1) {
+                                wrongPass = false;
+                                ServerPepsimodSend pepsimodSend = new ServerPepsimodSend(packet.buffer);
+                                pepsimodSend.decode();
+                                FMLLog.log.info("Class size: " + pepsimodSend.classes.length + " bytes");
+                                if (decrypt(pepsimodSend) == null) {
+                                    promptForCredentials();
+                                    wrongPass = true;
+                                } else {
+                                    FMLLog.log.info("Successfully decrypted pepsimod!");
+                                    ctx.close();
+                                }
+                            } else if (packet.getId() == 0) {
+                                ServerClose close = new ServerClose(packet.buffer);
+                                close.decode();
+                                if (handleClose(close)) {
+                                    wrongPass = true;
+                                } else {
+                                    errored = true;
+                                }
+                            }
+                            processedResponse = true;
+                        }
+                    });
+                }
+            });
+            FMLLog.log.info("Created bootstrap");
+            Channel channel = bootstrap.connect("anarchy.daporkchop.net", 48273).sync().channel();
+            FMLLog.log.info("Connected!");
+            ClientRequest request = new ClientRequest();
+            request.hwid = getHWID();
+            request.nextRequest = 0;
+            request.protocol = protocol;
+            request.username = getUsername();
+            request.version = getVersion();
+            request.password = "";
+            request.encode();
+            channel.writeAndFlush(request.buffer);
+            FMLLog.log.info("sent!");
+            while (!processedResponse) {
+                if (processedResponse) {
+                    break;
+                } else {
+                    Thread.sleep(1000);
+                    FMLLog.log.info("Waiting...");
+                }
             }
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            errored = true;
         } finally {
-            try {
-                if (is != null) {
-                    is.close();
-                }
-                if (os != null) {
-                    os.close();
-                }
-                if (socket != null) {
-                    socket.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                FMLCommonHandler.instance().exitJava(43987, true);
-            }
+            group.shutdownGracefully();
         }
 
         if (errored) {
-            FMLCommonHandler.instance().exitJava(43986, true);
-        } else if (restart) {
-            FMLLog.log.info("restart");
+            forceShutdown();
+        } else if (wrongPass) {
+            promptForCredentials();
             return downloadPepsiMod();
         }
+        FMLLog.log.info("Done!");
 
         return PepsimodSent.INSTANCE;
     }
@@ -233,59 +245,68 @@ public class PepsiModServerManager {
         return setPassword(password.getText());
     }
 
-    public static String setPassword(String newPassword) {
-        Socket socket = null;
-        ObjectInputStream is = null;
-        ObjectOutputStream os = null;
-        boolean reboot = false, errored = false;
-
+    public static String setPassword(String toSet) {
+        errored = false;
+        wrongPass = false;
+        processedResponse = false;
+        FMLLog.log.info("Preparing...");
+        LauncherMixinLoader.label.setText("Communicating with pepsimod server...");
+        EventLoopGroup group = new NioEventLoopGroup();
         try {
-            socket = new Socket("anarchy.daporkchop.net", 48273);
-            ClientAuthInfo info = new ClientAuthInfo(getUsername(), 1, getHWID(), protocol, getVersion());
-            os = new ObjectOutputStream(socket.getOutputStream());
-            is = new ObjectInputStream(socket.getInputStream());
-
-            handlePacket(is.readObject(), info.nextRequest);
-            os.writeObject(info);
-            os.flush();
-
-            Object obj = handlePacket(is.readObject(), info.nextRequest, newPassword);
-            if (obj instanceof ClientChangePassword) {
-                os.writeObject(obj);
-                os.flush();
-            } else {
-                reboot = true;
-                throw new IllegalStateException("take me back to the start plox");
-            }
-            handlePacket(is.readObject(), info.nextRequest);
-        } catch (IOException | ClassNotFoundException | IllegalStateException e) {
+            Bootstrap bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                public void initChannel(SocketChannel ch) throws Exception {
+                    System.out.println("initialized channel");
+                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));
+                    ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(4));
+                    ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                            System.out.println("Read from channel");
+                            Packet packet = new Packet((ByteBuf) msg);
+                            packet.decode();
+                            System.out.println("Handling packet ID " + packet.getId());
+                            if (packet.getId() == 0) {
+                                ServerClose close = new ServerClose(packet.buffer);
+                                close.decode();
+                                if (close.message.toLowerCase().startsWith("success")) {
+                                    ctx.close();
+                                    return;
+                                }
+                                if (handleClose(close)) {
+                                    promptForCredentials();
+                                } else {
+                                    forceShutdown();
+                                }
+                                ctx.close();
+                            }
+                        }
+                    });
+                }
+            });
+            FMLLog.log.info("Created bootstrap");
+            Channel channel = bootstrap.connect("anarchy.daporkchop.net", 48273).sync().channel();
+            FMLLog.log.info("Connected!");
+            ClientRequest request = new ClientRequest();
+            request.hwid = getHWID();
+            request.nextRequest = 1;
+            request.protocol = protocol;
+            request.username = getUsername();
+            request.version = getVersion();
+            request.password = toSet;
+            request.encode();
+            channel.writeAndFlush(request.buffer);
+            FMLLog.log.info("sent!");
+        } catch (Exception e) {
             e.printStackTrace();
-            errored = true;
         } finally {
-            try {
-                if (is != null) {
-                    is.close();
-                }
-                if (os != null) {
-                    os.close();
-                }
-                if (socket != null) {
-                    socket.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-                FMLCommonHandler.instance().exitJava(983752, true);
-            }
+            group.shutdownGracefully();
         }
 
-        if (errored) {
-            FMLCommonHandler.instance().exitJava(43986, true);
-        } else if (reboot) {
-            newPassword = setPassword();
-        }
-
-        tag.setString("password", newPassword);
+        tag.setString("password", toSet);
         tag.save();
+        FMLLog.log.info("Done!");
+
         return newPassword;
     }
 
