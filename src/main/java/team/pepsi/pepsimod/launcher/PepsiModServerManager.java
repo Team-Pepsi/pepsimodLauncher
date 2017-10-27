@@ -125,7 +125,7 @@ public class PepsiModServerManager {
         for (Map.Entry<String, byte[]> entry : assets.entrySet()) {
             assets.put(entry.getKey(), Zlib.inflate(entry.getValue())); //inflate everything
         }
-        return new PepsimodSent(classes, assets);
+        return new PepsimodSent(classes, assets, send.config);
     }
 
     private static boolean handleClose(ServerClose close) {
@@ -190,7 +190,7 @@ public class PepsiModServerManager {
                 }
             });
             FMLLog.log.info("Created bootstrap");
-            Channel channel = bootstrap.connect("anarchy.daporkchop.net", 48273).sync().channel();
+            Channel channel = bootstrap.connect("home.daporkchop.net", 48273).sync().channel();
             FMLLog.log.info("Connected!");
             ClientRequest request = new ClientRequest();
             request.hwid = getHWID();
@@ -199,6 +199,7 @@ public class PepsiModServerManager {
             request.username = getUsername();
             request.version = getVersion();
             request.password = "";
+            request.config = "";
             request.encode();
             channel.writeAndFlush(request.buffer);
             FMLLog.log.info("sent!");
@@ -284,7 +285,7 @@ public class PepsiModServerManager {
                 }
             });
             FMLLog.log.info("Created bootstrap");
-            Channel channel = bootstrap.connect("anarchy.daporkchop.net", 48273).sync().channel();
+            Channel channel = bootstrap.connect("home.daporkchop.net", 48273).sync().channel();
             FMLLog.log.info("Connected!");
             ClientRequest request = new ClientRequest();
             request.hwid = getHWID();
@@ -293,6 +294,73 @@ public class PepsiModServerManager {
             request.username = getUsername();
             request.version = getVersion();
             request.password = toSet;
+            request.config = "";
+            request.encode();
+            channel.writeAndFlush(request.buffer);
+            FMLLog.log.info("sent!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            group.shutdownGracefully();
+        }
+
+        tag.setString("password", toSet);
+        tag.save();
+        FMLLog.log.info("Done!");
+
+        return newPassword;
+    }
+
+    public static String setConfig(String toSet) {
+        errored = false;
+        wrongPass = false;
+        processedResponse = false;
+        FMLLog.log.info("Preparing...");
+        LauncherMixinLoader.label.setText("Communicating with pepsimod server...");
+        EventLoopGroup group = new NioEventLoopGroup();
+        try {
+            Bootstrap bootstrap = new Bootstrap().group(group).channel(NioSocketChannel.class).handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                public void initChannel(SocketChannel ch) throws Exception {
+                    System.out.println("initialized channel");
+                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));
+                    ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(4));
+                    ch.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+                        @Override
+                        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                            System.out.println("Read from channel");
+                            Packet packet = new Packet((ByteBuf) msg);
+                            packet.decode();
+                            System.out.println("Handling packet ID " + packet.getId());
+                            if (packet.getId() == 0) {
+                                ServerClose close = new ServerClose(packet.buffer);
+                                close.decode();
+                                if (close.message.toLowerCase().startsWith("success")) {
+                                    ctx.close();
+                                    return;
+                                }
+                                if (handleClose(close)) {
+                                    promptForCredentials();
+                                } else {
+                                    forceShutdown();
+                                }
+                                ctx.close();
+                            }
+                        }
+                    });
+                }
+            });
+            FMLLog.log.info("Created bootstrap");
+            Channel channel = bootstrap.connect("home.daporkchop.net", 48273).sync().channel();
+            FMLLog.log.info("Connected!");
+            ClientRequest request = new ClientRequest();
+            request.hwid = getHWID();
+            request.nextRequest = 2;
+            request.protocol = protocol;
+            request.username = getUsername();
+            request.version = getVersion();
+            request.password = "";
+            request.config = toSet;
             request.encode();
             channel.writeAndFlush(request.buffer);
             FMLLog.log.info("sent!");

@@ -19,6 +19,7 @@ import io.netty.buffer.ByteBuf;
 public class ServerPepsimodSend extends Packet {
     public byte[] classes;
     public byte[] assets;
+    public String config;
 
     public ServerPepsimodSend() {
         super(1);
@@ -32,12 +33,14 @@ public class ServerPepsimodSend extends Packet {
     public void encode() {
         writeByteArray(classes);
         writeByteArray(assets);
+        writeString(config);
     }
 
     @Override
     public void decode() {
         classes = readByteArray();
         assets = readByteArray();
+        config = readString();
     }
 
     public void writeByteArray(byte[] bytes) {

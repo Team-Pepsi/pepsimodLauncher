@@ -57,7 +57,7 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
 
             Field parent = ClassLoader.class.getDeclaredField("parent");
             long offset = getUnsafe().objectFieldOffset(parent);
-            getUnsafe().putObject(getClass().getClassLoader().getParent(), offset, classLoader);
+            getUnsafe().putObject(this.getClass().getClassLoader().getParent(), offset, classLoader);
             getUnsafe().putObject(Launch.classLoader, offset, new PepsiResourceAdder());
 
             Field resourceCache = LaunchClassLoader.class.getDeclaredField("resourceCache");

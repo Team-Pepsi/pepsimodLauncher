@@ -21,10 +21,12 @@ public class PepsimodSent {
 
     public final HashMap<String, byte[]> classes;
     public final HashMap<String, byte[]> assets;
+    public final String config;
 
-    public PepsimodSent(HashMap<String, byte[]> classes, HashMap<String, byte[]> assets) {
+    public PepsimodSent(HashMap<String, byte[]> classes, HashMap<String, byte[]> assets, String config) {
         this.classes = classes;
         this.assets = assets;
+        this.config = config;
         INSTANCE = this;
     }
 }
