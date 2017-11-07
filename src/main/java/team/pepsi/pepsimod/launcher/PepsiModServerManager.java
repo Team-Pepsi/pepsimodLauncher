@@ -47,7 +47,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class PepsiModServerManager {
-    public static final int protocol = 4;
+    public static final int protocol = 5;
     public static DataTag tag = new DataTag(new File(DataTag.HOME_FOLDER.getPath() + File.separatorChar + "pepsimodauth.dat"));
     public static String hwid = null;
     public static boolean errored = false;
@@ -399,7 +399,7 @@ public class PepsiModServerManager {
         MemoryInfo info4 = HardwareInfo.getMemoryInfo();
         OSInfo info5 = HardwareInfo.getOSInfo();
         GraphicsCard card = info3.getGraphicsCards().size() > 0 ? info3.getGraphicsCards().get(0) : null;
-        hwid = info.getCacheSize() + info.getModelName() + info.getModel() + info.getVendorId() + info.getMhz() + info.getNumCores() + info.getFamily() + info1.getVersion() + info1.getDate() + info1.getManufacturer() + info2.getManufacturer() + info2.getVersion() + info2.getName() + (card != null ? card.getChipType() + card.getName() + card.getManufacturer() + card.getDeviceType() : "nonce") + info3.getGraphicsCards().size() + info4.getTotalMemory() + info5.getName() + info5.getManufacturer() + info5.getVersion();
+        hwid = info.getModelName() + info.getModel() + info2.getName() + (card != null ? card.getName() : "nonce") + info4.getTotalMemory() + info5.getName();
         return hwid;
     }
 

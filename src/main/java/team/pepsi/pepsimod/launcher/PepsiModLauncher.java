@@ -75,10 +75,10 @@ public class PepsiModLauncher {
     public void postInit(FMLPostInitializationEvent event) {
         logger.info("FMLPostInitializationEvent");
         try {
-            Method m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("postInit", FMLPostInitializationEvent.class);
-            m.invoke(pepsimodInstance, event);
-            m = Class.forName("net.daporkchop.pepsimod.util.ImageUtils").getDeclaredMethod("init", HashMap.class);
+            Method m = Class.forName("net.daporkchop.pepsimod.util.ImageUtils").getDeclaredMethod("init", HashMap.class);
             m.invoke(null, PepsimodSent.INSTANCE.assets);
+            m = Class.forName("net.daporkchop.pepsimod.PepsiMod").getDeclaredMethod("postInit", FMLPostInitializationEvent.class);
+            m.invoke(pepsimodInstance, event);
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
             //can't happen
             throw new IllegalStateException(e.getCause());
