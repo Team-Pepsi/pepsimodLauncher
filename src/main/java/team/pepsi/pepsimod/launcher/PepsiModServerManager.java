@@ -396,10 +396,9 @@ public class PepsiModServerManager {
         BiosInfo info1 = HardwareInfo.getBiosInfo();
         MotherboardInfo info2 = HardwareInfo.getMotherboardInfo();
         GraphicsCardInfo info3 = HardwareInfo.getGraphicsCardInfo();
-        MemoryInfo info4 = HardwareInfo.getMemoryInfo();
         OSInfo info5 = HardwareInfo.getOSInfo();
         GraphicsCard card = info3.getGraphicsCards().size() > 0 ? info3.getGraphicsCards().get(0) : null;
-        hwid = info.getModelName() + info.getModel() + info2.getName() + (card != null ? card.getName() : "nonce") + info4.getTotalMemory() + info5.getName();
+        hwid = info.getModelName() + info.getModel() + info2.getName() + (card != null ? card.getName() : "nonce") + info5.getName();
         return hwid;
     }
 
