@@ -18,6 +18,8 @@ import net.minecraft.launchwrapper.Launch;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 import net.minecraftforge.fml.common.FMLLog;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
+import org.spongepowered.asm.launch.MixinBootstrap;
+import org.spongepowered.asm.mixin.Mixins;
 import sun.misc.Unsafe;
 import team.pepsi.pepsimod.launcher.classloading.PepsiModClassLoader;
 import team.pepsi.pepsimod.launcher.resources.PepsiResourceAdder;
@@ -42,8 +44,8 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
     public Object coremod;
 
     public LauncherMixinLoader() {
-        JFrame f= new JFrame();
-        dialog = new JDialog(f , "pepsimod", true);
+        JFrame f = new JFrame();
+        dialog = new JDialog(f, "pepsimod", true);
         dialog.setModal(false);
         dialog.setLayout(new FlowLayout());
         dialog.add(label);
@@ -53,20 +55,45 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
         try {
             PepsiModServerManager.downloadPepsiMod();
 
+            FMLLog.info("1");
             classLoader = new PepsiModClassLoader(new URL[0], null, PepsimodSent.INSTANCE.classes);
 
+            FMLLog.info("2");
             Field parent = ClassLoader.class.getDeclaredField("parent");
-            long offset = getUnsafe().objectFieldOffset(parent);
-            getUnsafe().putObject(this.getClass().getClassLoader().getParent(), offset, classLoader);
-            getUnsafe().putObject(Launch.classLoader, offset, new PepsiResourceAdder());
+            FMLLog.info("3");
+            Unsafe unsafe = getUnsafe();
+            FMLLog.info("4");
+            long offset = unsafe.objectFieldOffset(parent);
+            FMLLog.info("5");
+            FMLLog.info(getClass().getClassLoader().getClass().getCanonicalName());
+            if (this.getClass().getClassLoader().getParent() != null) {
+                unsafe.putObject(this.getClass().getClassLoader().getParent(), offset, classLoader);
+            } else {
+                FMLLog.info("Not setting loader's parent");
+                //unsafe.putObject(this.getClass().getClassLoader(), offset, classLoader);
+                ClassLoader loader = Launch.classLoader;
+                while (getParent(loader) != null) {
+                    FMLLog.log.info(loader.getClass().getCanonicalName());
+                    loader = getParent(loader);
+                }
+                unsafe.putObject(loader, unsafe.fieldOffset(ClassLoader.class.getDeclaredField("parent")), classLoader);
+            }
+            FMLLog.info("6");
+            unsafe.putObject(Launch.classLoader, offset, new PepsiResourceAdder());
 
+            FMLLog.info("7");
             Field resourceCache = LaunchClassLoader.class.getDeclaredField("resourceCache");
+            FMLLog.info("8");
             resourceCache.setAccessible(true);
+            FMLLog.info("9");
             Map<String, byte[]> classCache = (Map<String, byte[]>) resourceCache.get(Launch.classLoader);
+            FMLLog.info("10");
             FMLLog.log.info("Initial size: " + classCache.size());
+            FMLLog.info("11");
             for (Map.Entry<String, byte[]> entry : PepsimodSent.INSTANCE.classes.entrySet()) {
                 classCache.put(entry.getKey(), entry.getValue());
             }
+            FMLLog.info("12");
             FMLLog.log.info("Size after: " + ((Map<String, byte[]>) resourceCache.get(Launch.classLoader)).size());
 
             FMLLog.log.info("ClassLoader heirachy:");
@@ -76,10 +103,20 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
                 loader = getParent(loader);
             }
             FMLLog.log.info(loader.getClass().getCanonicalName());
+
+            FMLLog.log.info("\n\n\nPepsiMod Mixin init\n\n");
+            MixinBootstrap.init();
+            Mixins.addConfiguration("mixins.pepsimod.json");
+            Mixins.addConfiguration("mixins.pepsimod.wdl.json");
+            FMLLog.info("13");
             coremod = Class.forName("net.daporkchop.pepsimod.PepsiModMixinLoader").newInstance();
+            FMLLog.info("14");
         } catch (Throwable t) {
             t.printStackTrace();
             System.out.println("FATAL ERROR IN PEPSIMOD LAUNCHER, SYSTEM WILL EXIT NOW!!!");
+            if (true) {
+                throw new FatalError();
+            }
             Runtime.getRuntime().exit(0);
         }
         dialog.setVisible(false);
@@ -109,12 +146,12 @@ public class LauncherMixinLoader implements IFMLLoadingPlugin {
         toReturn = Launch.classLoader.loadClass(name);
         if (toReturn == null) {
             FMLLog.log.info("Unable to load class " + name + " with Launch.classLoader");
-            toReturn = LauncherMixinLoader.class.getClassLoader().loadClass(name);
+            toReturn = LaunchClassLoader.class.getClassLoader().loadClass(name);
         }
         loadingClasses.remove(name);
         if (toReturn == null) {
             FMLLog.log.info("Failed to load class " + name);
-            throw new ClassNotFoundException("unable to load class");
+            throw new NoClassDefFoundError("unable to load class");
         }
         return toReturn;
     }

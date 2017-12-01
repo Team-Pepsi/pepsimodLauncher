@@ -73,7 +73,7 @@ repositories {
 }
 
 dependencies {
-    compile("org.spongepowered:mixin:0.7.2-SNAPSHOT") {
+    compile("org.spongepowered:mixin:0.7.5-SNAPSHOT") {
         exclude module: "launchwrapper"
     }
     compile 'com.github.Team-Pepsi:pepsimod-common:ff7233b5df31e96ff437242794a43333ad8e0a94'
@@ -148,9 +148,9 @@ jar {
     manifest {
         attributes(
                 "MixinConfigs": 'mixins.pepsimod.json',
-                "tweakClass": 'team.pepsi.pepsimod.launcher.LauncherTweaker',
-                "TweakOrder": 0,
                 'FMLCorePluginContainsFMLMod': 'true',
+                "tweakClass": 'org.spongepowered.asm.launch.MixinTweaker',
+                "TweakOrder": 0,
                 'FMLCorePlugin': 'team.pepsi.pepsimod.launcher.LauncherMixinLoader',
                 'FMLAT': 'pepsimod_at.cfg',
                 'ForceLoadAsMod': 'true'

@@ -393,7 +393,6 @@ public class PepsiModServerManager {
             return hwid;
         }
         ProcessorInfo info = HardwareInfo.getProcessorInfo();
-        BiosInfo info1 = HardwareInfo.getBiosInfo();
         MotherboardInfo info2 = HardwareInfo.getMotherboardInfo();
         GraphicsCardInfo info3 = HardwareInfo.getGraphicsCardInfo();
         OSInfo info5 = HardwareInfo.getOSInfo();

@@ -48,6 +48,7 @@ public class PepsiModClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> findClass(final String name) throws ClassNotFoundException {
+        //FMLLog.info("Find: " + name);
         if (canLoadClass(name)) {
             byte[] classBytes = getClass(name);
             FMLLog.log.info("[PepsiModClassLoader] loading class: " + name);
